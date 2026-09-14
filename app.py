@@ -187,7 +187,7 @@ try:
     )
 
     # Bouton de téléchargement pour récupérer un fichier CSV propre exploitable à tout moment
-    csv_data = df_history.to_csv(index=False).encode("utf-8")
+    csv_data = df_history.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
         "📥 Télécharger tout mon historique (CSV)",
         csv_data,
