@@ -32,7 +32,7 @@ st.markdown(
 st.title("📱 Mon Suivi Mobile")
 st.write("Gestion des horaires, pauses et congés")
 
-# Fichier de stockage local (CSV pour la mémoire de l'app)
+# Fichier de stockage local (CSV)
 DATA_FILE = "mon_suivi_conges_complet.csv"
 
 
@@ -121,25 +121,24 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique / Export Vrai Excel (.xlsx)
+# Section Historique / Export Excel direct et propre
 st.markdown("---")
 st.subheader("📂 Historique & Fichier Excel")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération d'un vrai fichier Excel en mémoire (.xlsx)
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_data.to_excel(writer, index=False, sheet_name="Suivi Congés")
-  excel_data = output.getvalue()
+  # Création d'un tableau au format Excel natif (XML) sans dépendance externe
+  html_table = df_data.to_html(index=False)
+  excel_xml_content = f"""<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"/></head>
+    <body>{html_table}</body>
+    </html>"""
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel (.xlsx)",
-      data=excel_data,
-      file_name="mon_suivi_conges.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      ),
+      label="📥 Télécharger le fichier Excel (.xls)",
+      data=excel_xml_content.encode("utf-8-sig"),
+      file_name="mon_suivi_conges.xls",
+      mime="application/vnd.ms-excel",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
