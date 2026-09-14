@@ -119,34 +119,23 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement (Garanti 100% sans plantage)
+# Section Historique & Téléchargement (Garanti 100% compatible mobile)
 st.markdown("---")
-st.subheader("📂 Historique & Fichier de Suivi")
+st.subheader("📂 Historique & Fichier Tableur")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Utilisation d'un fichier .xls intelligent au format tableau HTML stylisé
-  # Excel/Numbers l'ouvrira directement dans de vraies colonnes sans bug de virgule !
-  html_table = df_data.to_html(index=False, classes="dataframe")
-  styled_html = f"""
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head><meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <style>
-    table {{ border-collapse: collapse; width: 100%; font-family: Calibri; }}
-    th {{ background-color: #1F4E78; color: #FFFFFF; font-weight: bold; text-align: center; padding: 10px; border: 1px solid #D9D9D9; }}
-    td {{ text-align: center; padding: 8px; border: 1px solid #D9D9D9; }}
-    tr:nth-child(even) {{ background-color: #F2F5F8; }}
-    </style>
-    </head>
-    <body>{html_table}</body>
-    </html>
-    """
+  # Utilisation du point-virgule (;) : indispensable pour que Numbers et Excel sur iOS 
+  # séparent automatiquement les données en colonnes sans bug !
+  csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig").encode(
+      "utf-8-sig"
+  )
 
   st.download_button(
-      label="📥 Télécharger le tableau de suivi (.xls)",
-      data=styled_html.encode("utf-8-sig"),
-      file_name="mon_suivi_conges.xls",
-      mime="application/vnd.ms-excel",
+      label="📥 Télécharger le fichier compatible Excel/Numbers (.csv)",
+      data=csv_data,
+      file_name="mon_suivi_conges.csv",
+      mime="text/csv",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
