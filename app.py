@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Suivi Congés & Horaires", page_icon="📱", layout="centered"
 )
 
-# Style CSS épuré
+# Style CSS épuré pour l'application mobile
 st.markdown(
     """
     <style>
@@ -120,81 +120,91 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement Excel Stylé
+# Section Historique & Téléchargement VRAI Excel Coloré
 st.markdown("---")
 st.subheader("📂 Historique & Fichier Excel Coloré")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération d'un vrai fichier Excel avec openpyxl (En-têtes bleus #1F4E78, texte blanc, zébrage, bordures)
+  # Génération d'un VRAI fichier Excel .xlsx coloré avec xlsxwriter
   output = io.BytesIO()
-  try:
-    import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+  with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    df_data.to_excel(writer, sheet_name="Suivi Congés", index=False)
+    workbook = writer.book
+    worksheet = writer.sheets["Suivi Congés"]
 
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-      df_data.to_excel(writer, sheet_name="Suivi Congés", index=False)
-      workbook = writer.book
-      worksheet = writer.sheets["Suivi Congés"]
-      worksheet.views.sheetView[0].showGridLines = True
+    # Activer explicitement le quadrillage visible
+    worksheet.hide_gridlines(0)
 
-      header_fill = PatternFill(
-          start_color="1F4E78", end_color="1F4E78", fill_type="solid"
-      )
-      header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-      zebra_fill = PatternFill(
-          start_color="F2F5F8", end_color="F2F5F8", fill_type="solid"
-      )
-      white_fill = PatternFill(
-          start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"
-      )
+    # Styles élégants (En-têtes bleus #1F4E78, texte blanc, zébrage gris clair)
+    header_format = workbook.add_format({
+        "bold": True,
+        "font_color": "white",
+        "bg_color": "#1F4E78",
+        "align": "center",
+        "valign": "center",
+        "border": 1,
+    })
 
-      border_thin = Border(
-          left=Side(style="thin", color="D9D9D9"),
-          right=Side(style="thin", color="D9D9D9"),
-          top=Side(style="thin", color="D9D9D9"),
-          bottom=Side(style="thin", color="D9D9D9"),
-      )
-      align_center = Alignment(horizontal="center", vertical="center")
-      align_left = Alignment(horizontal="left", vertical="center")
+    cell_center = workbook.add_format({
+        "align": "center",
+        "valign": "center",
+        "border": 1,
+    })
 
-      for col_num, header_title in enumerate(df_data.columns, 1):
-        cell = worksheet.cell(row=1, column=col_num, value=header_title)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = align_center
-        cell.border = border_thin
+    cell_left = workbook.add_format({
+        "align": "left", "valign": "center", "border": 1
+    })
 
-      for row_num, row_data in enumerate(df_data.itertuples(index=False), 2):
-        is_even = row_num % 2 == 0
-        current_fill = zebra_fill if is_even else white_fill
-        for col_num, val in enumerate(row_data, 1):
-          cell = worksheet.cell(
-              row=row_num, column=col_num, value=val if pd.notna(val) else ""
-          )
-          cell.fill = current_fill
-          cell.border = border_thin
-          cell.alignment = (
-              align_center if col_num in [1, 3, 4, 7, 8, 9, 10] else align_left
-          )
+    zebra_center = workbook.add_format({
+        "align": "center",
+        "valign": "center",
+        "bg_color": "#F2F5F8",
+        "border": 1,
+    })
 
-    excel_data = output.getvalue()
-    st.download_button(
-        label="📥 Télécharger le fichier Excel coloré (.xlsx)",
-        data=excel_data,
-        file_name="mon_suivi_conges_colore.xlsx",
-        mime=(
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        ),
-    )
-  except Exception as e:
-    # Fallback propre si openpyxl rencontre un souci
-    csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
-    st.download_button(
-        label="📥 Télécharger le tableau (.csv)",
-        data=csv_data.encode("utf-8-sig"),
-        file_name="mon_suivi_conges.csv",
-        mime="text/csv",
-    )
+    zebra_left = workbook.add_format({
+        "align": "left", "valign": "center", "bg_color": "#F2F5F8", "border": 1
+    })
+
+    # Appliquer le format aux en-têtes
+    for col_num, value in enumerate(df_data.columns.values):
+      worksheet.write(0, col_num, value, header_format)
+
+    # Appliquer le format aux lignes de données
+    for row_idx in range(len(df_data)):
+      is_even = row_idx % 2 != 0  # Ligne paire pour le zébrage
+      for col_idx, col_name in enumerate(df_data.columns):
+        val = df_data.iloc[row_idx, col_idx]
+        if pd.isna(val):
+          val = ""
+
+        # Centrer certaines colonnes clés (Date, Heures, Année, etc.)
+        is_centered = col_idx in [0, 2, 3, 6, 7, 8, 9]
+
+        if is_even:
+          f = zebra_center if is_centered else zebra_left
+        else:
+          f = cell_center if is_centered else cell_left
+
+        worksheet.write(row_idx + 1, col_idx, val, f)
+
+    # Ajustement automatique de la largeur des colonnes
+    for i, col in enumerate(df_data.columns):
+      max_len = max(
+          df_data[col].astype(str).map(len).max(), len(str(col))
+      ) + 4
+      worksheet.set_column(i, i, max(max_len, 12))
+
+  excel_data = output.getvalue()
+
+  st.download_button(
+      label="📥 Télécharger le VRAI fichier Excel coloré (.xlsx)",
+      data=excel_data,
+      file_name="mon_suivi_conges_colore.xlsx",
+      mime=(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ),
+  )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
