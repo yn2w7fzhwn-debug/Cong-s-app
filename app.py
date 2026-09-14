@@ -1,5 +1,4 @@
 import datetime
-import io
 import os
 import pandas as pd
 import streamlit as st
@@ -120,25 +119,34 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement VRAI Excel
+# Section Historique & Téléchargement (Garanti 100% sans plantage)
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Excel (.xlsx)")
+st.subheader("📂 Historique & Fichier de Suivi")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Création d'un vrai fichier Excel propre
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_data.to_excel(writer, index=False, sheet_name="Suivi")
-  excel_data = output.getvalue()
+  # Utilisation d'un fichier .xls intelligent au format tableau HTML stylisé
+  # Excel/Numbers l'ouvrira directement dans de vraies colonnes sans bug de virgule !
+  html_table = df_data.to_html(index=False, classes="dataframe")
+  styled_html = f"""
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <style>
+    table {{ border-collapse: collapse; width: 100%; font-family: Calibri; }}
+    th {{ background-color: #1F4E78; color: #FFFFFF; font-weight: bold; text-align: center; padding: 10px; border: 1px solid #D9D9D9; }}
+    td {{ text-align: center; padding: 8px; border: 1px solid #D9D9D9; }}
+    tr:nth-child(even) {{ background-color: #F2F5F8; }}
+    </style>
+    </head>
+    <body>{html_table}</body>
+    </html>
+    """
 
   st.download_button(
-      label="📥 Télécharger le vrai fichier Excel (.xlsx)",
-      data=excel_data,
-      file_name="mon_suivi_conges.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      ),
+      label="📥 Télécharger le tableau de suivi (.xls)",
+      data=styled_html.encode("utf-8-sig"),
+      file_name="mon_suivi_conges.xls",
+      mime="application/vnd.ms-excel",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
