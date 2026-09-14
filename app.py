@@ -1,153 +1,70 @@
-import datetime
-import os
-import pandas as pd
-import streamlit as st
-
-# Configuration de la page
-st.set_page_config(
-    page_title="Suivi Congés & Horaires", page_icon="📱", layout="centered"
-)
-
-# Style CSS épuré pour l'application mobile
-st.markdown(
-    """
-    <style>
-    .main {
-        background-color: #f4f6f9;
-    }
-    .stButton>button {
-        width: 100%;
-        background-color: #1f4e78;
-        color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        padding: 0.6rem;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
-
-st.title("📱 Mon Suivi Mobile")
-st.write("Gestion des horaires, pauses et congés")
-
-DATA_FILE = "mon_suivi_conges_complet.csv"
-
-
-def load_data():
-  if os.path.exists(DATA_FILE):
-    try:
-      return pd.read_csv(DATA_FILE, encoding="utf-8-sig")
-    except Exception:
-      return pd.DataFrame()
-  return pd.DataFrame()
-
-
-df_data = load_data()
-
-# 1. Date
-st.subheader("1. Date de l'enregistrement")
-date_du_jour = st.date_input(
-    "Date du jour", value=datetime.date.today(), format="DD/MM/YYYY"
-)
-
-# 2. Type & Commentaire
-st.subheader("2. Statut / Congé / Observation")
-type_journee = st.selectbox(
-    "Type",
-    [
-        "Journée normale",
-        "Congé payé (Cp)",
-        "Récupération (Rec)",
-        "Jour férié (Férié)",
-        "Maladie",
-        "Autre",
-    ],
-)
-commentaire = st.text_input(
-    "Précision / Commentaire optionnel",
-    placeholder="Ex: Récup des heures sup...",
-)
-
-# 3. Horaires
-st.subheader("3. Horaires & Vestiaires")
-col1, col2 = st.columns(2)
-with col1:
-  heure_arrivee = st.time_input(
-      "Arrivée", value=datetime.time(8, 0), step=300
-  )
-with col2:
-  heure_depart = st.time_input("Départ", value=datetime.time(17, 0), step=300)
-
-col3, col4 = st.columns(2)
-with col3:
-  debut_pause = st.time_input(
-      "Début Pause", value=datetime.time(12, 0), step=300
-  )
-with col4:
-  fin_pause = st.time_input("Fin Pause", value=datetime.time(12, 30), step=300)
-
-vestiaire_arriver = st.checkbox("Vestiaire à l'arrivée (+5 min)")
-vestiaire_depart = st.checkbox("Vestiaire au départ (+5 min)")
-
-# Enregistrement
-if st.button("💾 Enregistrer la journée"):
-  date_formatee = date_du_jour.strftime("%d/%m/%Y")
-  jour_semaine = date_du_jour.strftime("%A")
-
-  nouvelle_ligne = {
-      "Année": date_du_jour.year,
-      "Mois": date_du_jour.strftime("%B"),
-      "Date": date_formatee,
-      "Jour": jour_semaine,
-      "Statut": type_journee,
-      "Commentaire": commentaire,
-      "Arrivée": heure_arrivee.strftime("%H:%M"),
-      "Départ": heure_depart.strftime("%H:%M"),
-      "Début Pause": debut_pause.strftime("%H:%M"),
-      "Fin Pause": fin_pause.strftime("%H:%M"),
-  }
-
-  df_new = pd.DataFrame([nouvelle_ligne])
-
-  if not df_data.empty:
-    df_final = pd.concat([df_data, df_new], ignore_index=True)
-  else:
-    df_final = df_new
-
-  df_final.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
-  st.success("✅ Enregistré avec succès !")
-  df_data = df_final
-
-# Section Historique & Téléchargement Tableau Coloré
+# Section Historique & Téléchargement VRAI Excel .xlsx stylisé
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Tableau Coloré")
+st.subheader("📂 Historique & Fichier Excel (.xlsx)")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération d'un fichier tableur stylé en HTML/XML (ouvert parfaitement par Excel avec les couleurs)
-  html_table = f"""
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <style>
-        table {{ border-collapse: collapse; width: 100%; font-family: Calibri, sans-serif; }}
-        th {{ background-color: #1F4E78; color: #FFFFFF; font-weight: bold; text-align: center; padding: 10px; border: 1px solid #D9D9D9; }}
-        td {{ text-align: center; padding: 8px; border: 1px solid #D9D9D9; }}
-        tr:nth-child(even) {{ background-color: #F2F5F8; }}
-    </style>
-    </head>
-    <body>
-        {df_data.to_html(index=False, escape=False)}
-    </body>
-    </html>
-    """
+  # Création d'un vrai fichier Excel stylisé avec openpyxl
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    df_data.to_excel(writer, index=False, sheet_name="Suivi")
+
+  # Récupération et stylisation avancée avec openpyxl
+  output.seek(0)
+  import openpyxl
+  from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+  wb = openpyxl.load_workbook(output)
+  ws = wb.active
+
+  # Style des en-têtes (Bleu pro, texte blanc, centré)
+  header_fill = PatternFill(
+      start_color="1F4E78", end_color="1F4E78", fill_type="solid"
+  )
+  header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+  align_center = Alignment(horizontal="center", vertical="center")
+  thin_border = Border(
+      left=Side(style="thin", color="D9D9D9"),
+      right=Side(style="thin", color="D9D9D9"),
+      top=Side(style="thin", color="D9D9D9"),
+      bottom=Side(style="thin", color="D9D9D9"),
+  )
+
+  for col in range(1, len(df_data.columns) + 1):
+    cell = ws.cell(row=1, column=col)
+    cell.fill = header_fill
+    cell.font = header_font
+    cell.alignment = align_center
+    cell.border = thin_border
+
+  # Style des lignes de données (Zébrage et bordures)
+  zebra_fill = PatternFill(
+      start_color="F2F5F8", end_color="F2F5F8", fill_type="solid"
+  )
+  regular_font = Font(name="Calibri", size=11)
+
+  for row in range(2, len(df_data) + 2):
+    is_even = row % 2 == 0
+    for col in range(1, len(df_data.columns) + 1):
+      cell = ws.cell(row=row, column=col)
+      cell.font = regular_font
+      cell.alignment = align_center
+      cell.border = thin_border
+      if is_even:
+        cell.fill = zebra_fill
+
+  # Sauvegarde finale dans un buffer propre
+  final_output = io.BytesIO()
+  wb.save(final_output)
+  excel_bytes = final_output.getvalue()
 
   st.download_button(
-      label="📥 Télécharger le fichier Tableau Coloré (.xls)",
-      data=html_table.encode("utf-8-sig"),
-      file_name="mon_suivi_conges_colore.xls",
-      mime="application/vnd.ms-excel",
+      label="📥 Télécharger le VRAI fichier Excel (.xlsx)",
+      data=excel_bytes,
+      file_name="mon_suivi_conges.xlsx",
+      mime=(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ),
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
