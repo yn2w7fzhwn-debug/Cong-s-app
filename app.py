@@ -1,13 +1,14 @@
-from datetime import datetime, timedelta
+import datetime
+import os
 import pandas as pd
 import streamlit as st
 
-# Configuration de la page pour mobile
+# Configuration de la page
 st.set_page_config(
-    page_title="Suivi Congés & Horaires", page_icon="📅", layout="centered"
+    page_title="Suivi Congés & Horaires", page_icon="📱", layout="centered"
 )
 
-# Style CSS mobile-friendly
+# Style CSS pour mobile-friendly
 st.markdown(
     """
     <style>
@@ -16,23 +17,11 @@ st.markdown(
     }
     .stButton>button {
         width: 100%;
-        background-color: #007AFF;
+        background-color: #ff4b4b;
         color: white;
-        font-size: 18px;
-        padding: 14px;
-        border-radius: 12px;
-        border: none;
         font-weight: bold;
-    }
-    .stButton>button:hover {
-        background-color: #0056b3;
-    }
-    .metric-card {
-        background-color: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        text-align: center;
+        border-radius: 8px;
+        padding: 0.6rem;
     }
     </style>
 """,
@@ -42,158 +31,110 @@ st.markdown(
 st.title("📱 Mon Suivi Mobile")
 st.write("Gestion des horaires, pauses et congés (remplace Excel)")
 
-# 1. Sélection de la date
-st.subheader("1. Date de l'enregistrement")
-date_jour = st.date_input("Date du jour", value=datetime.today())
-jour_semaine = date_jour.strftime("%A")
-jours_fr = {
-    "Monday": "Lundi",
-    "Tuesday": "Mardi",
-    "Wednesday": "Mercredi",
-    "Thursday": "Jeudi",
-    "Friday": "Vendredi",
-    "Saturday": "Samedi",
-    "Sunday": "Dimanche",
-}
-jour_fr = jours_fr.get(jour_semaine, jour_semaine)
-st.info(f"🗓️ **{jour_fr} {date_jour.strftime('%d/%m/%Y')}**")
+# Fichier de stockage local (CSV)
+DATA_FILE = "mon_suivi_conges_complet.csv"
 
-# 2. Statut / Type de journée (congés, gardes, etc.)
+
+# Fonction pour charger les données avec encodage utf-8-sig pour les accents Excel
+def load_data():
+  if os.path.exists(DATA_FILE):
+    try:
+      return pd.read_csv(DATA_FILE, encoding="utf-8-sig")
+    except Exception:
+      return pd.DataFrame()
+  return pd.DataFrame()
+
+
+df_data = load_data()
+
+# 1. Date de l'enregistrement (Format JJ/MM/AAAA visible)
+st.subheader("1. Date de l'enregistrement")
+date_du_jour = st.date_input(
+    "Date du jour", value=datetime.date(2026, 9, 14), format="DD/MM/YYYY"
+)
+
+# 2. Statut / Congé / Observation
 st.subheader("2. Statut / Congé / Observation")
-type_entree = st.selectbox(
+type_journee = st.selectbox(
     "Type",
     [
         "Journée normale",
-        "Rec (Récupération)",
-        "Férié",
-        "Garde",
+        "Congé payé (Cp)",
+        "Récupération (Rec)",
+        "Jour férié (Férié)",
         "Maladie",
-        "Cp (Congé payé)",
-        "D45",
-        "D50",
         "Autre",
     ],
 )
-commentaire_libre = st.text_input("Précision / Commentaire optionnel", "")
+commentaire = st.text_input(
+    "Précision / Commentaire optionnel",
+    placeholder="Ex: Récup des heures sup...",
+)
 
-# 3. Horaires et Pauses
+# 3. Horaires & Vestiaires
 st.subheader("3. Horaires & Vestiaires")
-
 col1, col2 = st.columns(2)
 with col1:
-    heure_arrivee = st.time_input(
-        "Arrivée", value=datetime.strptime("08:00", "%H:%M").time()
-    )
-    debut_pause = st.time_input(
-        "Début Pause", value=datetime.strptime("12:00", "%H:%M").time()
-    )
+  heure_arrivee = st.time_input(
+      "Arrivée", value=datetime.time(8, 0), step=300
+  )
 with col2:
-    heure_depart = st.time_input(
-        "Départ", value=datetime.strptime("17:00", "%H:%M").time()
-    )
-    fin_pause = st.time_input(
-        "Fin Pause", value=datetime.strptime("13:00", "%H:%M").time()
-    )
+  heure_depart = st.time_input("Départ", value=datetime.time(17, 0), step=300)
 
-temps_vestiaire = st.selectbox(
-    "Temps vestiaire", ["00:00:00", "00:10:00", "00:15:00"]
-)
+col3, col4 = st.columns(2)
+with col3:
+  debut_pause = st.time_input(
+      "Début Pause", value=datetime.time(12, 0), step=300
+  )
+with col4:
+  fin_pause = st.time_input("Fin Pause", value=datetime.time(12, 30), step=300)
 
-# --- CALCUL AUTOMATIQUE DU CUMUL JOUR ---
-# Calcul de la durée de travail nette
-dt_arrivee = datetime.combine(datetime.today(), heure_arrivee)
-dt_depart = datetime.combine(datetime.today(), heure_depart)
-dt_deb_pause = datetime.combine(datetime.today(), debut_pause)
-dt_fin_pause = datetime.combine(datetime.today(), fin_pause)
+vestiaire_arriver = st.checkbox("Vestiaire à l'arrivée (+5 min)")
+vestiaire_depart = st.checkbox("Vestiaire au départ (+5 min)")
 
-# Si présence d'une pause valide
-duree_totale = dt_depart - dt_arrivee
-duree_pause = (
-    (dt_fin_pause - dt_deb_pause) if dt_fin_pause > dt_deb_pause else timedelta(0)
-)
-duree_travail = duree_totale - duree_pause
-
-if duree_travail.total_seconds() < 0:
-    duree_travail = timedelta(0)
-
-# Affichage du calcul en direct
-hours, remainder = divmod(int(duree_travail.total_seconds()), 3600)
-minutes, _ = divmod(remainder, 60)
-cumul_jour_str = f"{hours:02d}:{minutes:02d}:00"
-
-st.markdown(
-    f"""
-    <div style="background-color: #e3f2fd; padding: 10px; border-radius: 8px; text-align: center; color: #0d47a1;">
-        <b>Cumul estimé pour cette journée : {cumul_jour_str}</b>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-# 4. Bouton de Validation & Sauvegarde
-st.markdown("<br>", unsafe_allow_html=True)
+# Calculs automatiques
+# (Logique de calcul simplifiée pour l'enregistrement)
 if st.button("💾 Enregistrer la journée"):
-    nouvelle_ligne = {
-        "Année": date_jour.year,
-        "Mois": date_jour.strftime("%B"),
-        "Date": date_jour.strftime("%Y-%m-%d"),
-        "Jour": jour_fr,
-        "Statut": type_entree,
-        "Commentaire": commentaire_libre,
-        "Arrivée": str(heure_arrivee),
-        "Début Pause": str(debut_pause),
-        "Fin Pause": str(fin_pause),
-        "Départ": str(heure_depart),
-        "Vestiaire": temps_vestiaire,
-        "Cumul/Jour": cumul_jour_str,
-    }
+  # Formater la date proprement au format JJ/MM/AAAA pour le fichier
+  date_formatee = date_du_jour.strftime("%d/%m/%Y")
+  jour_semaine = date_du_jour.strftime("%A")
 
-    df_nouveau = pd.DataFrame([nouvelle_ligne])
+  nouvelle_ligne = {
+      "Année": date_du_jour.year,
+      "Mois": date_du_jour.strftime("%B"),
+      "Date": date_formatee,
+      "Jour": jour_semaine,
+      "Statut": type_journee,
+      "Commentaire": commentaire,
+      "Arrivée": heure_arrivee.strftime("%H:%M"),
+      "Départ": heure_depart.strftime("%H:%M"),
+      "Début Pause": debut_pause.strftime("%H:%M"),
+      "Fin Pause": fin_pause.strftime("%H:%M"),
+  }
 
-    # Enregistrement persistant dans un fichier CSV local
-    fichier_csv = "suivi_conges_donnees.csv"
-    try:
-        df_existant = pd.read_csv(fichier_csv)
-        # Éviter les doublons sur la même date si on ré-encode
-        df_existant = df_existant[df_existant["Date"] != nouvelle_ligne["Date"]]
-        df_final = pd.concat([df_existant, df_nouveau], ignore_index=True)
-    except FileNotFoundError:
-        df_final = df_nouveau
+  df_new = pd.DataFrame([nouvelle_ligne])
 
-    # Trier par date
-    df_final = df_final.sort_values(by="Date", ascending=False)
-    df_final.to_csv(fichier_csv, index=False)
-    st.success("✅ Enregistré avec succès dans votre base !")
+  if not df_data.empty:
+    df_final = pd.concat([df_data, df_new], ignore_index=True)
+  else:
+    df_final = df_new
 
-# 5. Visualisation de l'historique et Soldes
+  # Sauvegarde avec utf-8-sig pour des accents parfaits dans Excel
+  df_final.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+  st.success("✅ Enregistré avec succès !")
+
+# Section Historique / Export Excel
 st.markdown("---")
-st.subheader("📊 Historique & Récapitulatif")
+st.subheader("📂 Historique & Fichier Excel")
+if not df_data.empty:
+  st.dataframe(df_data)
 
-try:
-    df_history = pd.read_csv("suivi_conges_donnees.csv")
-
-    # Compteur rapide des types de congés / statuts encodés
-    st.write("### 📌 Compteurs de vos statuts")
-    if "Statut" in df_history.columns:
-        compteurs = df_history["Statut"].value_counts()
-        st.write(compteurs)
-
-    st.write("### 📝 Dernières entrées")
-    st.dataframe(
-        df_history[
-            ["Date", "Jour", "Statut", "Arrivée", "Départ", "Cumul/Jour"]
-        ].head(10),
-        use_container_width=True,
-    )
-
-    # Bouton de téléchargement pour récupérer un fichier CSV propre exploitable à tout moment
-    csv_data = df_history.to_csv(index=False).encode("utf-8-sig")
+  with open(DATA_FILE, "rb") as f:
     st.download_button(
-        "📥 Télécharger tout mon historique (CSV)",
-        csv_data,
-        "mon_suivi_conges_complet.csv",
-        "text/csv",
+        label="📥 Télécharger le fichier Excel complet",
+        data=f,
+        file_name="mon_suivi_conges.csv",
+        mime="text/csv",
     )
-
-except FileNotFoundError:
-    st.info("Aucune donnée enregistrée pour le moment. Encodez votre première journée !")
+else:
+  st.info("Aucune donnée enregistrée pour le moment.")
