@@ -1,5 +1,9 @@
 import datetime
+import io
 import os
+import openpyxl
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 import pandas as pd
 import streamlit as st
 
@@ -29,13 +33,15 @@ st.markdown(
 )
 
 st.title("📱 Mon Suivi Mobile")
-st.write("Gestion des horaires, pauses et congés (remplace Excel)")
+st.write(
+    "Gestion des horaires, pauses et congés (remplace Excel avec mise en"
+    " forme)"
+)
 
-# Fichier de stockage local (CSV)
+# Fichier de stockage local (CSV pour la mémoire de l'app)
 DATA_FILE = "mon_suivi_conges_complet.csv"
 
 
-# Fonction pour charger les données avec encodage utf-8-sig pour les accents Excel
 def load_data():
   if os.path.exists(DATA_FILE):
     try:
@@ -47,10 +53,10 @@ def load_data():
 
 df_data = load_data()
 
-# 1. Date de l'enregistrement (Format JJ/MM/AAAA visible)
+# 1. Date de l'enregistrement
 st.subheader("1. Date de l'enregistrement")
 date_du_jour = st.date_input(
-    "Date du jour", value=datetime.date(2026, 9, 14), format="DD/MM/YYYY"
+    "Date du jour", value=datetime.date.today(), format="DD/MM/YYYY"
 )
 
 # 2. Statut / Congé / Observation
@@ -92,10 +98,8 @@ with col4:
 vestiaire_arriver = st.checkbox("Vestiaire à l'arrivée (+5 min)")
 vestiaire_depart = st.checkbox("Vestiaire au départ (+5 min)")
 
-# Calculs automatiques
-# (Logique de calcul simplifiée pour l'enregistrement)
+# Enregistrement
 if st.button("💾 Enregistrer la journée"):
-  # Formater la date proprement au format JJ/MM/AAAA pour le fichier
   date_formatee = date_du_jour.strftime("%d/%m/%Y")
   jour_semaine = date_du_jour.strftime("%A")
 
@@ -119,22 +123,87 @@ if st.button("💾 Enregistrer la journée"):
   else:
     df_final = df_new
 
-  # Sauvegarde avec utf-8-sig pour des accents parfaits dans Excel
   df_final.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
   st.success("✅ Enregistré avec succès !")
+  df_data = df_final  # Met à jour l'affichage direct
 
-# Section Historique / Export Excel
+
+# Fonction pour générer un fichier Excel stylisé (.xlsx)
+def create_styled_excel(df):
+  output = io.BytesIO()
+  wb = openpyxl.Workbook()
+  ws = wb.active
+  ws.title = "Suivi Congés"
+
+  # En-têtes et données
+  headers = list(df.columns)
+  ws.append(headers)
+
+  for _, row in df.iterrows():
+    ws.append(list(row))
+
+  # Styles professionnels (Palette Bleu nuit / Muted)
+  header_fill = PatternFill(
+      start_color="1F4E78", end_color="1F4E78", fill_type="solid"
+  )
+  header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+  data_font = Font(name="Arial", size=10)
+  thin_border = Border(
+      left=Side(style="thin", color="D3D3D3"),
+      right=Side(style="thin", color="D3D3D3"),
+      top=Side(style="thin", color="D3D3D3"),
+      bottom=Side(style="thin", color="D3D3D3"),
+  )
+  zebra_fill = PatternFill(
+      start_color="F9FAFB", end_color="F9FAFB", fill_type="solid"
+  )
+
+  # Application du style sur l'en-tête
+  for col_num in range(1, len(headers) + 1):
+    cell = ws.cell(row=1, column=col_num)
+    cell.fill = header_fill
+    cell.font = header_font
+    cell.alignment = Alignment(
+        horizontal="center", vertical="center", wrap_text=True
+    )
+
+  # Application du style sur les lignes de données
+  for row_num in range(2, len(df) + 2):
+    is_even = row_num % 2 == 0
+    for col_num in range(1, len(headers) + 1):
+      cell = ws.cell(row=row_num, column=col_num)
+      cell.font = data_font
+      cell.border = thin_border
+      cell.alignment = Alignment(horizontal="center", vertical="center")
+      if is_even:
+        cell.fill = zebra_fill
+
+  # Ajustement automatique de la largeur des colonnes
+  for col in ws.columns:
+    max_len = max(len(str(cell.value or "")) for cell in col)
+    col_letter = get_column_letter(col[0].column)
+    ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+  wb.save(output)
+  output.seek(0)
+  return output
+
+
+# Section Historique / Export Excel (.xlsx stylisé)
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Excel")
+st.subheader("📂 Historique & Fichier Excel Pro")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  with open(DATA_FILE, "rb") as f:
-    st.download_button(
-        label="📥 Télécharger le fichier Excel complet",
-        data=f,
-        file_name="mon_suivi_conges.csv",
-        mime="text/csv",
-    )
+  excel_data = create_styled_excel(df_data)
+
+  st.download_button(
+      label="📥 Télécharger le VRAI fichier Excel mis en forme (.xlsx)",
+      data=excel_data,
+      file_name="mon_suivi_conges.xlsx",
+      mime=(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ),
+  )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
