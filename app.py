@@ -32,7 +32,7 @@ st.markdown(
 st.title("📱 Mon Suivi Mobile")
 st.write("Gestion des horaires, pauses et congés")
 
-# Fichier de stockage local (CSV)
+# Fichier de stockage local (CSV pour la mémoire de l'app)
 DATA_FILE = "mon_suivi_conges_complet.csv"
 
 
@@ -121,22 +121,25 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique / Export Excel compatible
+# Section Historique / Export Vrai Excel (.xlsx)
 st.markdown("---")
-st.subheader("📂 Historique & Fichier")
+st.subheader("📂 Historique & Fichier Excel")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Utilisation d'un export CSV avec utf-8-sig pour que Excel l'ouvre parfaitement sans caractères bizarres
-  csv_data = df_data.to_csv(index=False, encoding="utf-8-sig").encode(
-      "utf-8-sig"
-  )
+  # Génération d'un vrai fichier Excel en mémoire (.xlsx)
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    df_data.to_excel(writer, index=False, sheet_name="Suivi Congés")
+  excel_data = output.getvalue()
 
   st.download_button(
-      label="📥 Télécharger le fichier de suivi pour Excel",
-      data=csv_data,
-      file_name="mon_suivi_conges.csv",
-      mime="text/csv",
+      label="📥 Télécharger le fichier Excel (.xlsx)",
+      data=excel_data,
+      file_name="mon_suivi_conges.xlsx",
+      mime=(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ),
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
