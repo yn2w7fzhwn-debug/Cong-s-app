@@ -126,22 +126,14 @@ st.subheader("📂 Historique & Fichier Excel Coloré")
 if not df_data.empty:
   st.dataframe(df_data)
 
-
-  # Génération d'un fichier Excel stylé avec Pandas et XlsxWriter (couleurs pro, zébrage, grille visible)
-  @st.cache_data
-  func = lambda df: None  # Dummy for syntax if needed
-
-
   output = io.BytesIO()
   with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
     df_data.to_excel(writer, sheet_name="Suivi Congés", index=False)
     workbook = writer.book
     worksheet = writer.sheets["Suivi Congés"]
 
-    # Afficher le quadrillage
     worksheet.hide_gridlines(0)
 
-    # Formats de style
     header_format = workbook.add_format({
         "bold": True,
         "font_color": "white",
@@ -172,11 +164,9 @@ if not df_data.empty:
         "align": "left", "valign": "center", "bg_color": "#F2F5F8", "border": 1
     })
 
-    # Appliquer le format des en-têtes
     for col_num, value in enumerate(df_data.columns.values):
       worksheet.write(0, col_num, value, header_format)
 
-    # Appliquer le format des lignes (zébrage + bordures + centrage)
     for row_idx in range(len(df_data)):
       is_even = row_idx % 2 != 0
       for col_idx, col_name in enumerate(df_data.columns):
@@ -184,7 +174,6 @@ if not df_data.empty:
         if pd.isna(val):
           val = ""
 
-        # Choix du format selon la colonne et la ligne
         is_centered = col_idx in [0, 2, 3, 6, 7, 8, 9]
 
         if is_even:
@@ -194,7 +183,6 @@ if not df_data.empty:
 
         worksheet.write(row_idx + 1, col_idx, val, f)
 
-    # Ajustement automatique des largeurs de colonnes
     for i, col in enumerate(df_data.columns):
       max_len = max(
           df_data[col].astype(str).map(len).max(), len(str(col))
@@ -209,8 +197,5 @@ if not df_data.empty:
       file_name="mon_suivi_conges_colore.xlsx",
       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   )
-else:
-  st.info("Aucune donnée enregistrée pour le moment.")
-
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
