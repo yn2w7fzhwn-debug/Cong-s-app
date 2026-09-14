@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import pandas as pd
 import streamlit as st
@@ -120,35 +121,21 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique / Export Fichier Tableur Propre
+# Section Historique / Export Fichier Propre
 st.markdown("---")
 st.subheader("📂 Historique & Fichier Tableur")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Création d'un format tableur XML natif pour ouverture directe en colonnes
-  xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <Worksheet ss:Name="Suivi">
-  <Table>
-   <Row>
-    {"".join([f'<Cell><Data ss:Type="String">{col}</Data></Cell>' for col in df_data.columns])}
-   </Row>
-   {"".join(['<Row>' + ''.join([f'<Cell><Data ss:Type="String">{str(val) if pd.notna(val) else ""}</Data></Cell>' for val in row]) + '</Row>' for row in df_data.values]}
-  </Table>
- </Worksheet>
-</Workbook>"""
+  # Utilisation d'un export CSV avec séparateur point-virgule (;)
+  # Excel sur iPhone et Numbers l'ouvrent automatiquement et directement en colonnes parfaites !
+  csv_semicolon = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
 
   st.download_button(
-      label="📥 Télécharger le fichier Tableur (.xls)",
-      data=xml_content.encode("utf-8-sig"),
-      file_name="mon_suivi_conges.xls",
-      mime="application/vnd.ms-excel",
+      label="📥 Télécharger le fichier pour Excel / Numbers (.csv)",
+      data=csv_semicolon.encode("utf-8-sig"),
+      file_name="mon_suivi_conges.csv",
+      mime="text/csv",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
