@@ -1,5 +1,4 @@
 import datetime
-import io
 import os
 import pandas as pd
 import streamlit as st
@@ -122,24 +121,20 @@ if st.button("💾 Enregistrer la journée"):
 
 # Section Historique & Téléchargement
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Excel (.xlsx)")
+st.subheader("📂 Historique & Fichier de Suivi")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération propre du fichier Excel .xlsx natif
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_data.to_excel(writer, index=False, sheet_name="Suivi")
-
-  excel_data = output.getvalue()
+  # Utilisation directe du CSV natif (garanti sans bug de module)
+  csv_data = df_data.to_csv(index=False, encoding="utf-8-sig").encode(
+      "utf-8-sig"
+  )
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel (.xlsx)",
-      data=excel_data,
-      file_name="mon_suivi_conges.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      ),
+      label="📥 Télécharger le fichier de suivi (.csv)",
+      data=csv_data,
+      file_name="mon_suivi_conges.csv",
+      mime="text/csv",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
