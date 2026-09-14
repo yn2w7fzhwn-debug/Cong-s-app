@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import pandas as pd
 import streamlit as st
@@ -119,20 +120,97 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement
+# Section Historique & Téléchargement Excel Stylé
 st.markdown("---")
-st.subheader("📂 Historique & Fichier")
+st.subheader("📂 Historique & Fichier Excel Coloré")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Export CSV avec séparateur point-virgule (reconnu instantanément par Numbers et Excel en colonnes)
-  csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
+
+  # Génération d'un fichier Excel stylé avec Pandas et XlsxWriter (couleurs pro, zébrage, grille visible)
+  @st.cache_data
+  func = lambda df: None  # Dummy for syntax if needed
+
+
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+    df_data.to_excel(writer, sheet_name="Suivi Congés", index=False)
+    workbook = writer.book
+    worksheet = writer.sheets["Suivi Congés"]
+
+    # Afficher le quadrillage
+    worksheet.hide_gridlines(0)
+
+    # Formats de style
+    header_format = workbook.add_format({
+        "bold": True,
+        "font_color": "white",
+        "bg_color": "#1F4E78",
+        "align": "center",
+        "valign": "center",
+        "border": 1,
+    })
+
+    cell_format_center = workbook.add_format({
+        "align": "center",
+        "valign": "center",
+        "border": 1,
+    })
+
+    cell_format_left = workbook.add_format({
+        "align": "left", "valign": "center", "border": 1
+    })
+
+    zebra_format_center = workbook.add_format({
+        "align": "center",
+        "valign": "center",
+        "bg_color": "#F2F5F8",
+        "border": 1,
+    })
+
+    zebra_format_left = workbook.add_format({
+        "align": "left", "valign": "center", "bg_color": "#F2F5F8", "border": 1
+    })
+
+    # Appliquer le format des en-têtes
+    for col_num, value in enumerate(df_data.columns.values):
+      worksheet.write(0, col_num, value, header_format)
+
+    # Appliquer le format des lignes (zébrage + bordures + centrage)
+    for row_idx in range(len(df_data)):
+      is_even = row_idx % 2 != 0
+      for col_idx, col_name in enumerate(df_data.columns):
+        val = df_data.iloc[row_idx, col_idx]
+        if pd.isna(val):
+          val = ""
+
+        # Choix du format selon la colonne et la ligne
+        is_centered = col_idx in [0, 2, 3, 6, 7, 8, 9]
+
+        if is_even:
+          f = zebra_format_center if is_centered else zebra_format_left
+        else:
+          f = cell_format_center if is_centered else cell_format_left
+
+        worksheet.write(row_idx + 1, col_idx, val, f)
+
+    # Ajustement automatique des largeurs de colonnes
+    for i, col in enumerate(df_data.columns):
+      max_len = max(
+          df_data[col].astype(str).map(len).max(), len(str(col))
+      ) + 4
+      worksheet.set_column(i, i, max(max_len, 12))
+
+  excel_data = output.getvalue()
 
   st.download_button(
-      label="📥 Télécharger le tableau propre (.csv)",
-      data=csv_data.encode("utf-8-sig"),
-      file_name="mon_suivi_conges.csv",
-      mime="text/csv",
+      label="📥 Télécharger le fichier Excel coloré & stylé (.xlsx)",
+      data=excel_data,
+      file_name="mon_suivi_conges_colore.xlsx",
+      mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   )
+else:
+  st.info("Aucune donnée enregistrée pour le moment.")
+
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
