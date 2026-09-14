@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Suivi Congés & Horaires", page_icon="📱", layout="centered"
 )
 
-# Style CSS pour mobile-friendly
+# Style CSS épuré
 st.markdown(
     """
     <style>
@@ -31,7 +31,6 @@ st.markdown(
 st.title("📱 Mon Suivi Mobile")
 st.write("Gestion des horaires, pauses et congés")
 
-# Fichier de stockage local (CSV)
 DATA_FILE = "mon_suivi_conges_complet.csv"
 
 
@@ -46,13 +45,13 @@ def load_data():
 
 df_data = load_data()
 
-# 1. Date de l'enregistrement
+# 1. Date
 st.subheader("1. Date de l'enregistrement")
 date_du_jour = st.date_input(
     "Date du jour", value=datetime.date.today(), format="DD/MM/YYYY"
 )
 
-# 2. Statut / Congé / Observation
+# 2. Type & Commentaire
 st.subheader("2. Statut / Congé / Observation")
 type_journee = st.selectbox(
     "Type",
@@ -70,7 +69,7 @@ commentaire = st.text_input(
     placeholder="Ex: Récup des heures sup...",
 )
 
-# 3. Horaires & Vestiaires
+# 3. Horaires
 st.subheader("3. Horaires & Vestiaires")
 col1, col2 = st.columns(2)
 with col1:
@@ -120,58 +119,20 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique / Export Fichier Tableur Propre
+# Section Historique & Téléchargement
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Tableur")
+st.subheader("📂 Historique & Fichier")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération d'un fichier Excel natif (format XML Spreadsheet) stylé et coloré sans dépendance externe
-  xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <Styles>
-  <Style ss:ID="Header">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-   </Borders>
-   <Interior ss:Color="#1F4E78" ss:Pattern="Solid"/>
-   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
-  </Style>
-  <Style ss:ID="CellData">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-   </Borders>
-   <Font ss:FontName="Calibri" ss:Size="11"/>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Suivi Congés">
-  <Table>
-   <Row>
-    {"".join([f'<Cell ss:StyleID="Header"><Data ss:Type="String">{col}</Data></Cell>' for col in df_data.columns])}
-   </Row>
-   {"".join(['<Row>' + ''.join([f'<Cell ss:StyleID="CellData"><Data ss:Type="String">{str(val) if pd.notna(val) else ""}</Data></Cell>' for val in row]) + '</Row>' for row in df_data.values])}
-  </Table>
- </Worksheet>
-</Workbook>"""
+  # Export CSV avec séparateur point-virgule (reconnu instantanément par Numbers et Excel en colonnes)
+  csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel coloré (.xls)",
-      data=xml_content.encode("utf-8-sig"),
-      file_name="mon_suivi_conges.xls",
-      mime="application/vnd.ms-excel",
+      label="📥 Télécharger le tableau propre (.csv)",
+      data=csv_data.encode("utf-8-sig"),
+      file_name="mon_suivi_conges.csv",
+      mime="text/csv",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
