@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import pandas as pd
 import streamlit as st
@@ -119,20 +120,81 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement CSV Universel
+# Section Historique & Téléchargement Excel Stylé
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Tableur")
+st.subheader("📂 Historique & Fichier Excel Coloré")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Export CSV propre avec séparateur point-virgule (s'ouvre parfaitement dans Excel et Numbers mobile)
-  csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
+  # Génération d'un vrai fichier Excel avec openpyxl (En-têtes bleus #1F4E78, texte blanc, zébrage, bordures)
+  output = io.BytesIO()
+  try:
+    import openpyxl
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-  st.download_button(
-      label="📥 Télécharger le tableau (.csv)",
-      data=csv_data.encode("utf-8-sig"),
-      file_name="mon_suivi_conges.csv",
-      mime="text/csv",
-  )
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+      df_data.to_excel(writer, sheet_name="Suivi Congés", index=False)
+      workbook = writer.book
+      worksheet = writer.sheets["Suivi Congés"]
+      worksheet.views.sheetView[0].showGridLines = True
+
+      header_fill = PatternFill(
+          start_color="1F4E78", end_color="1F4E78", fill_type="solid"
+      )
+      header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+      zebra_fill = PatternFill(
+          start_color="F2F5F8", end_color="F2F5F8", fill_type="solid"
+      )
+      white_fill = PatternFill(
+          start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"
+      )
+
+      border_thin = Border(
+          left=Side(style="thin", color="D9D9D9"),
+          right=Side(style="thin", color="D9D9D9"),
+          top=Side(style="thin", color="D9D9D9"),
+          bottom=Side(style="thin", color="D9D9D9"),
+      )
+      align_center = Alignment(horizontal="center", vertical="center")
+      align_left = Alignment(horizontal="left", vertical="center")
+
+      for col_num, header_title in enumerate(df_data.columns, 1):
+        cell = worksheet.cell(row=1, column=col_num, value=header_title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align_center
+        cell.border = border_thin
+
+      for row_num, row_data in enumerate(df_data.itertuples(index=False), 2):
+        is_even = row_num % 2 == 0
+        current_fill = zebra_fill if is_even else white_fill
+        for col_num, val in enumerate(row_data, 1):
+          cell = worksheet.cell(
+              row=row_num, column=col_num, value=val if pd.notna(val) else ""
+          )
+          cell.fill = current_fill
+          cell.border = border_thin
+          cell.alignment = (
+              align_center if col_num in [1, 3, 4, 7, 8, 9, 10] else align_left
+          )
+
+    excel_data = output.getvalue()
+    st.download_button(
+        label="📥 Télécharger le fichier Excel coloré (.xlsx)",
+        data=excel_data,
+        file_name="mon_suivi_conges_colore.xlsx",
+        mime=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    )
+  except Exception as e:
+    # Fallback propre si openpyxl rencontre un souci
+    csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
+    st.download_button(
+        label="📥 Télécharger le tableau (.csv)",
+        data=csv_data.encode("utf-8-sig"),
+        file_name="mon_suivi_conges.csv",
+        mime="text/csv",
+    )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
