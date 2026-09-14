@@ -1,5 +1,4 @@
 import datetime
-import io
 import os
 import pandas as pd
 import streamlit as st
@@ -120,82 +119,88 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement Excel Stylé
+# Section Historique & Téléchargement Excel Coloré Natif
 st.markdown("---")
 st.subheader("📂 Historique & Fichier Excel Coloré")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-    df_data.to_excel(writer, sheet_name="Suivi Congés", index=False)
-    workbook = writer.book
-    worksheet = writer.sheets["Suivi Congés"]
+  # Génération d'un fichier Excel stylé (en-têtes bleus #1F4E78, texte blanc, lignes zébrées, bordures) sans aucune dépendance externe
+  xml_rows = []
+  # Ligne d'en-tête
+  header_cells = "".join([
+      '<Cell ss:StyleID="Header"><Data ss:Type="String">'
+      + str(col)
+      + "</Data></Cell>"
+      for col in df_data.columns
+  ])
+  xml_rows.append(f"<Row>{header_cells}</Row>")
 
-    worksheet.hide_gridlines(0)
+  # Lignes de données avec zébrage
+  for idx, row in enumerate(df_data.values):
+    style_id = "CellZebra" if idx % 2 == 1 else "CellWhite"
+    row_cells = "".join([
+        f'<Cell ss:StyleID="{style_id}"><Data ss:Type="String">'
+        + (str(val) if pd.notna(val) else "")
+        + "</Data></Cell>"
+        for val in row
+    ])
+    xml_rows.append(f"<Row>{row_cells}</Row>")
 
-    header_format = workbook.add_format({
-        "bold": True,
-        "font_color": "white",
-        "bg_color": "#1F4E78",
-        "align": "center",
-        "valign": "center",
-        "border": 1,
-    })
-
-    cell_format_center = workbook.add_format({
-        "align": "center",
-        "valign": "center",
-        "border": 1,
-    })
-
-    cell_format_left = workbook.add_format({
-        "align": "left", "valign": "center", "border": 1
-    })
-
-    zebra_format_center = workbook.add_format({
-        "align": "center",
-        "valign": "center",
-        "bg_color": "#F2F5F8",
-        "border": 1,
-    })
-
-    zebra_format_left = workbook.add_format({
-        "align": "left", "valign": "center", "bg_color": "#F2F5F8", "border": 1
-    })
-
-    for col_num, value in enumerate(df_data.columns.values):
-      worksheet.write(0, col_num, value, header_format)
-
-    for row_idx in range(len(df_data)):
-      is_even = row_idx % 2 != 0
-      for col_idx, col_name in enumerate(df_data.columns):
-        val = df_data.iloc[row_idx, col_idx]
-        if pd.isna(val):
-          val = ""
-
-        is_centered = col_idx in [0, 2, 3, 6, 7, 8, 9]
-
-        if is_even:
-          f = zebra_format_center if is_centered else zebra_format_left
-        else:
-          f = cell_format_center if is_centered else cell_format_left
-
-        worksheet.write(row_idx + 1, col_idx, val, f)
-
-    for i, col in enumerate(df_data.columns):
-      max_len = max(
-          df_data[col].astype(str).map(len).max(), len(str(col))
-      ) + 4
-      worksheet.set_column(i, i, max(max_len, 12))
-
-  excel_data = output.getvalue()
+  excel_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Header">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+   </Borders>
+   <Interior ss:Color="#1F4E78" ss:Pattern="Solid"/>
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+  </Style>
+  <Style ss:ID="CellWhite">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+   </Borders>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+   <Font ss:FontName="Calibri" ss:Size="11"/>
+  </Style>
+  <Style ss:ID="CellZebra">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
+   </Borders>
+   <Interior ss:Color="#F2F5F8" ss:Pattern="Solid"/>
+   <Font ss:FontName="Calibri" ss:Size="11"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Suivi Conges">
+  <Table>
+   {"".join(xml_rows)}
+  </Table>
+ </Worksheet>
+</Workbook>"""
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel coloré & stylé (.xlsx)",
-      data=excel_data,
-      file_name="mon_suivi_conges_colore.xlsx",
-      mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      label="📥 Télécharger le fichier Excel coloré (.xls)",
+      data=excel_content.encode("utf-8-sig"),
+      file_name="mon_suivi_conges_colore.xls",
+      mime="application/vnd.ms-excel",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
