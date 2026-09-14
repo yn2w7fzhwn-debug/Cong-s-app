@@ -1,9 +1,6 @@
 import datetime
 import io
 import os
-import openpyxl
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
 import pandas as pd
 import streamlit as st
 
@@ -33,12 +30,9 @@ st.markdown(
 )
 
 st.title("📱 Mon Suivi Mobile")
-st.write(
-    "Gestion des horaires, pauses et congés (remplace Excel avec mise en"
-    " forme)"
-)
+st.write("Gestion des horaires, pauses et congés")
 
-# Fichier de stockage local (CSV pour la mémoire de l'app)
+# Fichier de stockage local (CSV)
 DATA_FILE = "mon_suivi_conges_complet.csv"
 
 
@@ -125,85 +119,24 @@ if st.button("💾 Enregistrer la journée"):
 
   df_final.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
   st.success("✅ Enregistré avec succès !")
-  df_data = df_final  # Met à jour l'affichage direct
+  df_data = df_final
 
-
-# Fonction pour générer un fichier Excel stylisé (.xlsx)
-def create_styled_excel(df):
-  output = io.BytesIO()
-  wb = openpyxl.Workbook()
-  ws = wb.active
-  ws.title = "Suivi Congés"
-
-  # En-têtes et données
-  headers = list(df.columns)
-  ws.append(headers)
-
-  for _, row in df.iterrows():
-    ws.append(list(row))
-
-  # Styles professionnels (Palette Bleu nuit / Muted)
-  header_fill = PatternFill(
-      start_color="1F4E78", end_color="1F4E78", fill_type="solid"
-  )
-  header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
-  data_font = Font(name="Arial", size=10)
-  thin_border = Border(
-      left=Side(style="thin", color="D3D3D3"),
-      right=Side(style="thin", color="D3D3D3"),
-      top=Side(style="thin", color="D3D3D3"),
-      bottom=Side(style="thin", color="D3D3D3"),
-  )
-  zebra_fill = PatternFill(
-      start_color="F9FAFB", end_color="F9FAFB", fill_type="solid"
-  )
-
-  # Application du style sur l'en-tête
-  for col_num in range(1, len(headers) + 1):
-    cell = ws.cell(row=1, column=col_num)
-    cell.fill = header_fill
-    cell.font = header_font
-    cell.alignment = Alignment(
-        horizontal="center", vertical="center", wrap_text=True
-    )
-
-  # Application du style sur les lignes de données
-  for row_num in range(2, len(df) + 2):
-    is_even = row_num % 2 == 0
-    for col_num in range(1, len(headers) + 1):
-      cell = ws.cell(row=row_num, column=col_num)
-      cell.font = data_font
-      cell.border = thin_border
-      cell.alignment = Alignment(horizontal="center", vertical="center")
-      if is_even:
-        cell.fill = zebra_fill
-
-  # Ajustement automatique de la largeur des colonnes
-  for col in ws.columns:
-    max_len = max(len(str(cell.value or "")) for cell in col)
-    col_letter = get_column_letter(col[0].column)
-    ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
-
-  wb.save(output)
-  output.seek(0)
-  return output
-
-
-# Section Historique / Export Excel (.xlsx stylisé)
+# Section Historique / Export Excel compatible
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Excel Pro")
+st.subheader("📂 Historique & Fichier")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  excel_data = create_styled_excel(df_data)
+  # Utilisation d'un export CSV avec utf-8-sig pour que Excel l'ouvre parfaitement sans caractères bizarres
+  csv_data = df_data.to_csv(index=False, encoding="utf-8-sig").encode(
+      "utf-8-sig"
+  )
 
   st.download_button(
-      label="📥 Télécharger le VRAI fichier Excel mis en forme (.xlsx)",
-      data=excel_data,
-      file_name="mon_suivi_conges.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      ),
+      label="📥 Télécharger le fichier de suivi pour Excel",
+      data=csv_data,
+      file_name="mon_suivi_conges.csv",
+      mime="text/csv",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
