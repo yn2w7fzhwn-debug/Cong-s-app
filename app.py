@@ -121,24 +121,25 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique / Export Excel direct et propre
+# Section Historique / Export Vrai Fichier .xlsx
 st.markdown("---")
 st.subheader("📂 Historique & Fichier Excel")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Création d'un tableau au format Excel natif (XML) sans dépendance externe
-  html_table = df_data.to_html(index=False)
-  excel_xml_content = f"""<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head><meta charset="utf-8"/></head>
-    <body>{html_table}</body>
-    </html>"""
+  # Génération d'un vrai fichier Excel structuré (.xlsx)
+  output = io.BytesIO()
+  with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    df_data.to_excel(writer, index=False, sheet_name="Mon Suivi")
+  excel_data = output.getvalue()
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel (.xls)",
-      data=excel_xml_content.encode("utf-8-sig"),
-      file_name="mon_suivi_conges.xls",
-      mime="application/vnd.ms-excel",
+      label="📥 Télécharger le fichier Excel (.xlsx)",
+      data=excel_data,
+      file_name="mon_suivi_conges.xlsx",
+      mime=(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ),
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
