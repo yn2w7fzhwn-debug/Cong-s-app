@@ -1,5 +1,4 @@
 import datetime
-import io
 import os
 import pandas as pd
 import streamlit as st
@@ -121,25 +120,35 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique / Export Vrai Fichier .xlsx
+# Section Historique / Export Fichier Tableur Propre
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Excel")
+st.subheader("📂 Historique & Fichier Tableur")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération d'un vrai fichier Excel structuré (.xlsx)
-  output = io.BytesIO()
-  with pd.ExcelWriter(output, engine="openpyxl") as writer:
-    df_data.to_excel(writer, index=False, sheet_name="Mon Suivi")
-  excel_data = output.getvalue()
+  # Création d'un format tableur XML natif pour ouverture directe en colonnes
+  xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Suivi">
+  <Table>
+   <Row>
+    {"".join([f'<Cell><Data ss:Type="String">{col}</Data></Cell>' for col in df_data.columns])}
+   </Row>
+   {"".join(['<Row>' + ''.join([f'<Cell><Data ss:Type="String">{str(val) if pd.notna(val) else ""}</Data></Cell>' for val in row]) + '</Row>' for row in df_data.values]}
+  </Table>
+ </Worksheet>
+</Workbook>"""
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel (.xlsx)",
-      data=excel_data,
-      file_name="mon_suivi_conges.xlsx",
-      mime=(
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      ),
+      label="📥 Télécharger le fichier Tableur (.xls)",
+      data=xml_content.encode("utf-8-sig"),
+      file_name="mon_suivi_conges.xls",
+      mime="application/vnd.ms-excel",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
