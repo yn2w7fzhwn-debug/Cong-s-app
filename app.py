@@ -119,88 +119,20 @@ if st.button("💾 Enregistrer la journée"):
   st.success("✅ Enregistré avec succès !")
   df_data = df_final
 
-# Section Historique & Téléchargement Excel Coloré Natif
+# Section Historique & Téléchargement CSV Universel
 st.markdown("---")
-st.subheader("📂 Historique & Fichier Excel Coloré")
+st.subheader("📂 Historique & Fichier Tableur")
 if not df_data.empty:
   st.dataframe(df_data)
 
-  # Génération d'un fichier Excel stylé (en-têtes bleus #1F4E78, texte blanc, lignes zébrées, bordures) sans aucune dépendance externe
-  xml_rows = []
-  # Ligne d'en-tête
-  header_cells = "".join([
-      '<Cell ss:StyleID="Header"><Data ss:Type="String">'
-      + str(col)
-      + "</Data></Cell>"
-      for col in df_data.columns
-  ])
-  xml_rows.append(f"<Row>{header_cells}</Row>")
-
-  # Lignes de données avec zébrage
-  for idx, row in enumerate(df_data.values):
-    style_id = "CellZebra" if idx % 2 == 1 else "CellWhite"
-    row_cells = "".join([
-        f'<Cell ss:StyleID="{style_id}"><Data ss:Type="String">'
-        + (str(val) if pd.notna(val) else "")
-        + "</Data></Cell>"
-        for val in row
-    ])
-    xml_rows.append(f"<Row>{row_cells}</Row>")
-
-  excel_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <Styles>
-  <Style ss:ID="Header">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-   </Borders>
-   <Interior ss:Color="#1F4E78" ss:Pattern="Solid"/>
-   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
-  </Style>
-  <Style ss:ID="CellWhite">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-   </Borders>
-   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
-   <Font ss:FontName="Calibri" ss:Size="11"/>
-  </Style>
-  <Style ss:ID="CellZebra">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D9D9D9"/>
-   </Borders>
-   <Interior ss:Color="#F2F5F8" ss:Pattern="Solid"/>
-   <Font ss:FontName="Calibri" ss:Size="11"/>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Suivi Conges">
-  <Table>
-   {"".join(xml_rows)}
-  </Table>
- </Worksheet>
-</Workbook>"""
+  # Export CSV propre avec séparateur point-virgule (s'ouvre parfaitement dans Excel et Numbers mobile)
+  csv_data = df_data.to_csv(index=False, sep=";", encoding="utf-8-sig")
 
   st.download_button(
-      label="📥 Télécharger le fichier Excel coloré (.xls)",
-      data=excel_content.encode("utf-8-sig"),
-      file_name="mon_suivi_conges_colore.xls",
-      mime="application/vnd.ms-excel",
+      label="📥 Télécharger le tableau (.csv)",
+      data=csv_data.encode("utf-8-sig"),
+      file_name="mon_suivi_conges.csv",
+      mime="text/csv",
   )
 else:
   st.info("Aucune donnée enregistrée pour le moment.")
